@@ -1,0 +1,94 @@
+#!/bin/sh -e
+#? Lua Version Manager - v${version}
+#?
+#? Usage:
+#?   ${program} <COMMAND> [OPTION]
+#?
+#? Commands:
+#?   init        Initialize the Lua environment.
+#?   download    Download the Lua source code.
+#?   install     Install Lua version.
+#?
+#? Options:
+#?   -h,--help   Show this message.
+#?. 
+
+## 1. Initialize the environment.
+##    1.1. LuaVM configuration.
+##    1.1. Lua Variables.
+##    1.2. Directories and files.
+## 
+## 
+
+luavm_pushpath() {
+  : ${1:?path}
+  echo "$1:$PATH" | awk -v RS=':' -v ORS=':' '!path[$1]++'
+}
+
+luavm_check() {
+  test -n "$LUAVM_HOME" && test -d "$LUAVM_HOME" && test -f "$LUAVM_ENVRC"
+}
+
+luavm_config() {
+  export LUAVM_HOME=$HOME/.luavm
+  export LUAVM_ENVRC=$LUAVM_HOME/envrc
+}
+
+luavm_init() {
+  : ${1:?version}
+  export LUA_VERSION=$1
+  export LUA_HOME=$LUAVM_HOME/lua/$LUA_VERSION
+  export LUA_SOURCE=$LUAVM_HOME/src
+  export LUA_PATH=";;$LUA_HOME/share/lua/$LUA_VERSION/?.lua;$LUA_HOME/share/lua/$LUA_VERSION/?/init.lua"
+  export LUA_CPATH=";;$LUA_HOME/lib/lua/$LUA_VERSION/?.so"
+  export LUA_INIT='require "luarocks.loader"'
+  export PATH="$(luavm_pushpath $LUA_HOME/bin)"
+  echo "Creating $LUA_HOME ..."
+    mkdir -p $LUA_HOME
+  echo "Creating $LUA_SOURCE ..."
+    mkdir -p $LUA_SOURCE
+  echo "Creating configurarion file $LUAVM_ENVRC ..."
+    echo "LUAVM_HOME=\"$LUAVM_HOME\""   >  "$LUAVM_ENVRC"
+    echo "LUAVM_ENVRC=\"$LUAVM_ENVRC\"" >> "$LUAVM_ENVRC"
+    echo "LUA_VERSION=\"$LUA_VERSION\"" >> "$LUAVM_ENVRC"
+    echo "LUA_HOME=\"$LUA_HOME\""       >> "$LUAVM_ENVRC"
+    echo "LUA_SOURCE=\"$LUA_SOURCE\""   >> "$LUAVM_ENVRC"
+    echo "LUA_PATH=\"$LUA_PATH\""       >> "$LUAVM_ENVRC"
+    echo "LUA_CPATH=\"$LUA_CPATH\""     >> "$LUAVM_ENVRC"
+    echo "LUA_INIT=\"$LUA_INIT\""       >> "$LUAVM_ENVRC"
+    echo "PATH=\"$PATH\""               >> "$LUAVM_ENVRC"
+}
+
+command_help() {
+  local program=${0##*/}
+  local version=0.1.0
+  eval "echo \"$(grep '^#[?]' "${0}" | cut -c4-)\""
+}
+
+command_download() {
+  : ${1:?version}
+  local version=$1
+  local wget=$(command -v wget)
+  local url=http://www.lua.org/ftp
+  local src=lua-$version.tar.gz
+
+  luavm_check || {
+    luavm_config
+    luavm_init $1
+  }
+
+  test -x $wget && {
+    cd $LUA_SOURCE
+    $wget --continue --progress=dot --tries 3 $url/$src
+    cd - > /dev/null
+  }
+}
+
+command=$(command -v command_$1 || echo command_help)
+
+test $# -gt 0 && shift 1
+
+$command "${@}"
+
+exit $?
+
