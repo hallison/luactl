@@ -1,5 +1,5 @@
-#!/bin/sh -e
-#? Lua Version Manager - v${version}
+#!/bin/sh -ea
+#? Lua Environment Manager - v${version}
 #?
 #? Usage:
 #?   ${program} <COMMAND> [OPTION]
@@ -12,13 +12,6 @@
 #? Options:
 #?   -h,--help   Show this message.
 #?. 
-
-## 1. Initialize the environment.
-##    1.1. LuaVM configuration.
-##    1.1. Lua Variables.
-##    1.2. Directories and files.
-## 
-## 
 
 luavm_pushpath() {
   : ${1:?path}
@@ -37,7 +30,7 @@ luavm_config() {
 luavm_init() {
   : ${1:?version}
   export LUA_VERSION=$1
-  export LUA_HOME=$LUAVM_HOME/lua/$LUA_VERSION
+  export LUA_HOME=$LUAVM_HOME/luas
   export LUA_SOURCE=$LUAVM_HOME/src
   export LUA_PATH=";;$LUA_HOME/share/lua/$LUA_VERSION/?.lua;$LUA_HOME/share/lua/$LUA_VERSION/?/init.lua"
   export LUA_CPATH=";;$LUA_HOME/lib/lua/$LUA_VERSION/?.so"
@@ -57,6 +50,17 @@ luavm_init() {
     echo "LUA_CPATH=\"$LUA_CPATH\""     >> "$LUAVM_ENVRC"
     echo "LUA_INIT=\"$LUA_INIT\""       >> "$LUAVM_ENVRC"
     echo "PATH=\"$PATH\""               >> "$LUAVM_ENVRC"
+}
+
+luavm_patch() {
+  : ${1:?source directory}
+  : ${2:?target directory}
+
+  cp $1/src/luaconf.h $1/src/luaconf.h.orig
+  sed "s|^\(#define LUA_ROOT\)\(.*\)$|\1 \"$2\"|" $1/src/luaconf.h.orig > $1/src/luaconf.h
+
+  cp $1/Makefile $1/Makefile.orig
+  sed "s|^\(INSTALL_TOP= \)\(.*\)$|\1$2|" $1/Makefile.orig > $1/Makefile
 }
 
 command_help() {
@@ -83,6 +87,30 @@ command_download() {
     cd - > /dev/null
   }
 }
+
+command_install() {
+  : ${1:?version}
+  local lua=lua-$1
+  local tar=$(command -v tar)
+
+  luavm_check || {
+    luavm_config
+    luavm_init $1
+  }
+
+  test -f $LUA_SOURCE/$lua.tar.gz || command_download $1
+
+  cd $LUA_SOURCE && {
+    $tar -xf $LUA_SOURCE/$lua.tar.gz --overwrite --directory=$LUA_SOURCE
+    luavm_patch $LUA_SOURCE/$lua $LUA_HOME/$lua
+    cd $LUA_SOURCE/$lua && {
+      make clean linux
+      make install
+    }
+  }
+}
+
+trap '{ command_help; exit $?; }' 1 2
 
 command=$(command -v command_$1 || echo command_help)
 
