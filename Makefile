@@ -27,9 +27,9 @@ directories   =  \
 	$(sourcedir)   \
 
 program       = luavm
-sources       = lua.sh jit.sh
+sources       = lua.sh luajit.sh
+resources     = lua.md5 luajit.md5
 texts         = README.mkd README.pt-BR.mkd
-resources     = lua.md5 jit.md5
 
 executables   = $(addprefix $(bindir)/,$(program))
 libraries     = $(addprefix $(libdir)/,$(sources))
