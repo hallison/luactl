@@ -1,35 +1,29 @@
 .POSIX:
 SHELL = /bin/sh
 
-name          = luavm
+name          = luactl
 version      ?= $(shell git tag | sort | tail -1 | tr -d [v\n])
 release      ?= $(shell git log v$(version) --format='%ad' --date=short | head -1 | tr -d [\n])
 
-prefix       ?= ${HOME}/.luavm
+prefix       ?= /usr/local
 bindir       ?= $(prefix)/bin
-sysconfdir   ?= $(prefix)/etc
-libdir       ?= $(prefix)/lib
-datarootdir  ?= $(prefix)/share
+sysconfdir   ?= $(prefix)/etc/$(name)
+libdir       ?= $(prefix)/lib/$(name)
+libexecdir   ?= $(prefix)/libexec/$(name)
+datarootdir  ?= $(prefix)/share/$(name)
 sharerootdir ?= $(datarootdir)
-docdir       ?= $(sharerootdir)/doc
-luadir       ?= $(prefix)/luas
+docdir       ?= $(sharerootdir)/doc/$(name)
+vmdir        ?= $(libexecdir)/luavm
 sourcedir    ?= $(prefix)/src
 
 testdir       = test
-directories   =  \
-	$(prefix)      \
-	$(bindir)      \
-	$(libdir)      \
-	$(sysconfdir)  \
-	$(datarootdir) \
-	$(docdir)      \
-	$(luadir)      \
-	$(sourcedir)   \
+directories   = $(prefix) $(bindir) $(libdir) $(libexecdir)
+directories  += $(sysconfdir) $(datarootdir) $(docdir) $(vmdir) $(sourcedir)
 
-program       = luavm
-sources       = lua.sh luajit.sh
-resources     = lua.md5 luajit.md5
-texts         = README.mkd README.pt-BR.mkd
+program       = $(name)
+sources       = lua.sh LuaJIT.sh
+resources     = lua.md5 LuaJIT.md5
+texts         = README.md README.pt-BR.md
 
 executables   = $(addprefix $(bindir)/,$(program))
 libraries     = $(addprefix $(libdir)/,$(sources))
@@ -50,12 +44,12 @@ munge         = \
      -D_SYSCONFDIR="$(sysconfdir)"   \
      -D_DATAROOTDIR="$(datarootdir)" \
      -D_DOCDIR="$(docdir)"           \
-     -D_LUADIR="$(luadir)"           \
+     -D_VMDIR="$(vmdir)"           \
      -D_SOURCEDIR="$(sourcedir)"     \
 
 all::build
 
-.SUFFIXES: .m4 .sh .err .mkd .html
+.SUFFIXES: .m4 .sh .err .md .html
 
 .m4:
 	$(munge) $(<) > $(@)
@@ -64,7 +58,7 @@ all::build
 .sh.err: 
 	time -p sh -x $(<) $(test) 2> $(@)
 
-.mkd.html:
+.md.html:
 	markdown $(<) > $(@)
 
 clean:
@@ -82,6 +76,8 @@ build: $(program)
 install: build install-dirs install-bins install-libs install-configs install-docs
 
 uninstall: uninstall-bins uninstall-configs uninstall-libs uninstall-docs
+
+reinstall: uninstall install
 
 install-dirs: $(directories)
 
@@ -109,5 +105,5 @@ $(executables) $(libraries) $(configs) $(documents):
 	cp $(@F) $(@)
 
 $(directories):
-	mkdir -p $(@)
+	install -d $(@)
 
