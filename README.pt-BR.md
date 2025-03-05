@@ -1,3 +1,8 @@
+# OBSOLETO: Projeto descontinuado para favorecer o ASDF.
+
+- https://github.com/Dpbm/lua-asdf
+- https://github.com/Stratus3D/asdf-lua
+
 Lua Environment Manager
 =======================
 
